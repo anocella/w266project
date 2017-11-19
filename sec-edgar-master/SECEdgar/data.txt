@@ -1,0 +1,2 @@
+Quote   CIK        priorto(YYYYMMDD) Count
+NTAP  0001002047     20150101         80 
