@@ -7,7 +7,9 @@ import os
 import errno
 from bs4 import BeautifulSoup
 from config import DEFAULT_DATA_PATH
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 class SecCrawler():
 
@@ -27,14 +29,16 @@ class SecCrawler():
                     raise
 
     def save_in_directory(self, company_code, cik, priorto, doc_list,
-        doc_name_list, filing_type):
+        doc_name_list, filing_type, doc_date_list):
         # Save every text document into its respective folder
         for j in range(len(doc_list)):
             base_url = doc_list[j]
             r = requests.get(base_url, verify=False)
             data = r.text
+            # deleting filing_type from directory structure so they're all in the same CIK folder
             path = os.path.join(DEFAULT_DATA_PATH, company_code, cik,
-                filing_type, doc_name_list[j])
+                doc_date_list[j] + "_" + doc_name_list[j])
+            
 
             with open(path, "ab") as f:
                 f.write(data.encode('ascii', 'ignore'))
@@ -50,10 +54,10 @@ class SecCrawler():
         data = r.text
 
         # get doc list data
-        doc_list, doc_name_list = self.create_document_list(data)
+        doc_list, doc_name_list, doc_date_list = self.create_document_list(data)
 
         try:
-            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '10-Q')
+            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '10-Q', doc_date_list)
         except Exception as e:
             print (str(e))
 
@@ -72,10 +76,10 @@ class SecCrawler():
         data = r.text
 
         # get doc list data
-        doc_list, doc_name_list = self.create_document_list(data)
+        doc_list, doc_name_list, doc_date_list = self.create_document_list(data)
 
         try:
-            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '10-K')
+            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '10-K', doc_date_list)
         except Exception as e:
             print (str(e))
 
@@ -95,10 +99,10 @@ class SecCrawler():
         data = r.text
 
         # get doc list data
-        doc_list, doc_name_list = self.create_document_list(data)
+        doc_list, doc_name_list, doc_date_list = self.create_document_list(data)
 
         try:
-            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '8-K')
+            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, '8-K', doc_date_list)
         except Exception as e:
             print (str(e))
 
@@ -137,10 +141,10 @@ class SecCrawler():
         data = r.text
 
         # get doc list data
-        doc_list, doc_name_list = self.create_document_list(data)
+        doc_list, doc_name_list, doc_date_list = self.create_document_list(data)
 
         try:
-            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, 'SD')
+            self.save_in_directory(company_code, cik, priorto, doc_list, doc_name_list, 'SD', doc_date_list)
         except Exception as e:
             print (str(e))
 
@@ -148,7 +152,7 @@ class SecCrawler():
 
     def create_document_list(self, data):
         # parse fetched data using beatifulsoup
-        soup = BeautifulSoup(data)
+        soup = BeautifulSoup(data, "html5lib")
         # store the link in the list
         link_list = list()
 
@@ -159,6 +163,11 @@ class SecCrawler():
                 url += "l"
             link_list.append(url)
         link_list_final = link_list
+        
+        doc_date_list = list()
+        for fd in soup.find_all('datefiled'):
+            doc_date_list.append(fd.string)
+            
 
         print ("Number of files to download {0}".format(len(link_list_final)))
         print ("Starting download....")
@@ -175,4 +184,4 @@ class SecCrawler():
             docname = txtdoc.split("/")[-1]
             doc_list.append(txtdoc)
             doc_name_list.append(docname)
-        return doc_list, doc_name_list
+        return doc_list, doc_name_list, doc_date_list
